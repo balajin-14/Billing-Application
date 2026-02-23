@@ -1,0 +1,1 @@
+using billingApp.srv.BillingService as service from '../../srv/service';

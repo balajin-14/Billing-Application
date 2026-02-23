@@ -1,0 +1,116 @@
+{
+  "_version": "1.81.0",
+  "sap.app": {
+    "id": "billing",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.20.2",
+      "toolsId": "13fc95e1-86b4-436d-a6de-f4fe07b4fecf"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/v4/billing/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": false,
+    "dependencies": {
+      "minUI5Version": "1.144.1",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "billing.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "billing.view",
+        "async": true,
+        "viewPath": "billing.view"
+      },
+      "routes": [
+        {
+          "name": "RoutebillingHome",
+          "pattern": ":?query:",
+          "target": [
+            "TargetbillingHome"
+          ]
+        }
+      ],
+      "targets": {
+        "TargetbillingHome": {
+          "id": "billingHome",
+          "name": "billingHome"
+        }
+      }
+    },
+    "rootView": {
+      "viewName": "billing.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    }
+  }
+}

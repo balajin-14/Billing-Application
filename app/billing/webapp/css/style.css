@@ -1,0 +1,28 @@
+.disclaimerText {
+    color: #d32f2f;   /* Red color */
+    font-weight: bold;
+}
+.sapMText.fstHeader {
+    color: #0066cc !important;
+    font-weight: bold;
+}
+
+.sapMText.redHeader {
+    color: red !important;
+    font-weight: bold;
+}
+
+.sapMText.yellowHeader {
+    color: #d4aa00 !important;
+    font-weight: bold;
+}
+
+.sapMText.blackHeader {
+    color: black !important;
+    font-weight: bold;
+}
+
+.sapMText.greenHeader {
+    color: green !important;
+    font-weight: bold;
+}
