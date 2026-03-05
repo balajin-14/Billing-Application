@@ -2,9 +2,7 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageBox",
-    "sap/m/MessageToast",
-    "sap/ui/model/Filter",
-    "sap/ui/model/FilterOperator"
+    "sap/m/MessageToast"
 ], function (Controller, JSONModel, MessageBox, MessageToast, Filter, FilterOperator) {
     "use strict";
 
@@ -32,47 +30,47 @@ sap.ui.define([
                 modelDetails: [],
                 showModelDetails: false,
                 calculateEnabled: false,
-                saveEnabled: false
-
+                saveEnabled: false,
+                currentUserName: "",
+                currentUserEmail: ""
             });
-
             this.getView().setModel(oViewModel, "view");
+            this._loadCurrentUser();
+        },
+        _loadCurrentUser() {
+
+            if (sap.ushell && sap.ushell.Container) {
+                const oUser = sap.ushell.Container.getUser();
+                const oViewModel = this.getView().getModel("view");
+
+                oViewModel.setProperty("/currentUserName", oUser.getFullName());
+                oViewModel.setProperty("/currentUserEmail", oUser.getEmail());
+            }
         },
 
-        onDealerSuggest(oEvent) {
+        onDealerChange: function (oEvent) {
 
-            const sValue = oEvent.getParameter("suggestValue")?.trim();
-            const oBinding = oEvent.getSource().getBinding("suggestionRows");
+            const oCombo = oEvent.getSource();
+            const oSelectedItem = oCombo.getSelectedItem();
+            const oViewModel = this.getView().getModel("view");
+            const oODataModel = this.getView().getModel();
 
-            if (!oBinding) return;
 
-            if (!sValue) {
-                oBinding.filter([]);
+            if (!oCombo.getValue()) {
+                this._clearDealerFields();
                 return;
             }
 
-            const oFilter = new Filter({
-                filters: [
-                    new Filter("dealerID", FilterOperator.StartsWith, sValue),
-                    new Filter("dealerName", FilterOperator.Contains, sValue)
-                ],
-                and: false
-            });
 
-            oBinding.filter([oFilter]);
-        },
+            if (!oSelectedItem) {
+                sap.m.MessageBox.error("Please select a valid dealer from dropdown.");
+                oCombo.setValue("");
+                this._clearDealerFields();
+                return;
+            }
 
-        onDealerSelect(oEvent) {
 
-            const oRow = oEvent.getParameter("selectedRow");
-            if (!oRow) return;
-
-            const oDealer = oRow.getBindingContext().getObject();
-            const sDealerID = oDealer.dealerID;
-
-            const oODataModel = this.getView().getModel();
-            const oViewModel = this.getView().getModel("view");
-
+            const sDealerID = oSelectedItem.getKey();
             oViewModel.setProperty("/selectedDealerID", sDealerID);
 
             oODataModel.bindContext(`/Dealer('${sDealerID}')`)
@@ -87,27 +85,18 @@ sap.ui.define([
                     oViewModel.setProperty("/dealerSelected", true);
                 });
         },
+        _clearDealerFields: function () {
 
-        onDealerLiveChange(oEvent) {
-
-            const sValue = oEvent.getParameter("value");
             const oViewModel = this.getView().getModel("view");
 
-            if (!sValue || sValue.trim() === "") {
-
-                oViewModel.setProperty("/dealerName", "");
-                oViewModel.setProperty("/fundAvailability", "");
-                oViewModel.setProperty("/limitAvailability", "");
-                oViewModel.setProperty("/infOtherAmount", "");
-                oViewModel.setProperty("/infType", "");
-                oViewModel.setProperty("/selectedDealerID", "");
-                oViewModel.setProperty("/dealerSelected", false);
-            }
-            else {
-                oViewModel.setProperty("/dealerSelected", false);
-            }
+            oViewModel.setProperty("/dealerName", "");
+            oViewModel.setProperty("/fundAvailability", "");
+            oViewModel.setProperty("/limitAvailability", "");
+            oViewModel.setProperty("/infOtherAmount", "");
+            oViewModel.setProperty("/infType", "");
+            oViewModel.setProperty("/selectedDealerID", "");
+            oViewModel.setProperty("/dealerSelected", false);
         },
-
         async onDealerGo() {
 
             const oViewModel = this.getView().getModel("view");
@@ -211,8 +200,6 @@ sap.ui.define([
             );
 
             oModel.setProperty("/calculateEnabled", hasValue);
-            oModel.setProperty("/saveEnabled", false);
-
         },
 
         onCalculateAllocation() {
@@ -267,10 +254,10 @@ sap.ui.define([
             oViewModel.setProperty("/totalFundRequired", totalFundRequired);
             oViewModel.setProperty("/totalAllocationQty", totalAllocationQty);
             oViewModel.setProperty("/totalOrderValue", totalOrderValue);
-
-            MessageToast.show("Allocation calculated successfully.");
+            oViewModel.setProperty("/calculateEnabled", false);
             oViewModel.setProperty("/saveEnabled", true);
 
+            MessageToast.show("Allocation calculated successfully.");
         },
 
         _resetTotals() {
@@ -306,7 +293,6 @@ sap.ui.define([
             oViewModel.setProperty("/totalAllocationQty", 0);
             oViewModel.setProperty("/totalOrderValue", 0);
         },
-
         onModelSelect(oEvent) {
 
             const oContext = oEvent.getSource().getBindingContext("view");
@@ -327,27 +313,18 @@ sap.ui.define([
             oViewModel.setProperty("/showModelDetails", true);
         },
 
-
-        onModelPrevious() {
-            this.byId("BillingWizard").previousStep();
-        },
-
-
         async onSaveAllocation() {
 
             const oViewModel = this.getView().getModel("view");
             const oODataModel = this.getView().getModel();
 
+            const userName = oViewModel.getProperty("/currentUserName");
+            const userEmail = oViewModel.getProperty("/currentUserEmail");
+
             const aModels = oViewModel.getProperty("/Model") || [];
             const sDealerID = oViewModel.getProperty("/selectedDealerID");
 
             let dealerFund = parseFloat(oViewModel.getProperty("/fundAvailability")) || 0;
-
-            if (!aModels.length) {
-                sap.m.MessageBox.error("No models available.");
-                return;
-            }
-
             let totalOrderValue = 0;
 
             try {
@@ -362,84 +339,136 @@ sap.ui.define([
 
                     totalOrderValue += orderValue;
 
-                    const oBinding = oODataModel.bindList("/DealerAllocations", null, null, null, {
-                        $filter: `dealer_dealerID eq '${sDealerID}' and model_modelCode eq '${model.modelCode}'`
+                    oODataModel.bindList("/DealerAllocations").create({
+                        dealer_dealerID: sDealerID,
+                        model_modelCode: model.modelCode,
+                        allocationQty: qty,
+                        orderValue: orderValue,
+                        allocatedBy: userName,
+                        allocatedEmail: userEmail,
+                        allocatedAt: new Date().toISOString()
                     });
 
-                    const aExisting = await oBinding.requestContexts();
-
-                    if (aExisting.length > 0) {
-
-                        const oContext = aExisting[0];
-
-                        const existingQty = parseInt(oContext.getProperty("allocationQty"), 10) || 0;
-                        const existingValue = parseFloat(oContext.getProperty("orderValue")) || 0;
-
-                        oContext.setProperty("allocationQty", existingQty + qty);
-                        oContext.setProperty("orderValue", existingValue + orderValue);
-
-                    } else {
-
-                        oODataModel.bindList("/DealerAllocations").create({
-                            dealer_dealerID: sDealerID,
-                            model_modelCode: model.modelCode,
-                            allocationQty: qty,
-                            orderValue: orderValue
-                        });
-                    }
-
-                    const currentDepot = parseInt(model._context.getProperty("depotStock"), 10) || 0;
-                    const currentAvailable = parseInt(model._context.getProperty("availableStock"), 10) || 0;
-                    const currentAllocated = parseInt(model._context.getProperty("allocatedQty"), 10) || 0;
-
-                    const newDepot = currentDepot - qty;
-                    const newAvailable = currentAvailable - qty;
-                    const newAllocated = currentAllocated + qty;
-
-                    if (newDepot < 0 || newAvailable < 0) {
-                        sap.m.MessageBox.error("Insufficient stock in depot.");
-                        return;
-                    }
-
-
-                    model._context.setProperty("allocatedQty", newAllocated);
-                    model._context.setProperty("depotStock", newDepot);
-                    model._context.setProperty("availableStock", newAvailable);
-                    model._context.setProperty("fundRequired", newAvailable * price);
+                    model.allocatedQty = (parseInt(model.allocatedQty, 10) || 0) + qty;
+                    model.depotStock = (parseInt(model.depotStock, 10) || 0) - qty;
+                    model.availableStock = (parseInt(model.availableStock, 10) || 0) - qty;
+                    model.fundRequired = model.availableStock * price;
 
                     model.allocationQty = 0;
                     model.orderValue = 0;
-                    model.allocatedQty = newAllocated;
-                    model.depotStock = newDepot;
-                    model.availableStock = newAvailable;
-                    model.fundRequired = newAvailable * price;
 
+                    model._context.setProperty("allocatedQty", model.allocatedQty);
+                    model._context.setProperty("depotStock", model.depotStock);
+                    model._context.setProperty("availableStock", model.availableStock);
+                    model._context.setProperty("fundRequired", model.fundRequired);
+                    oViewModel.setProperty("/showModelDetails", false);
+                    this.byId("BillingWizard").previousStep();
                 }
 
                 dealerFund = dealerFund - totalOrderValue;
 
                 const oDealerBinding = oODataModel.bindContext(`/Dealer('${sDealerID}')`);
                 await oDealerBinding.requestObject();
-
-                const oDealerContext = oDealerBinding.getBoundContext();
-                oDealerContext.setProperty("fundAvailability", dealerFund);
-
+                oDealerBinding.getBoundContext().setProperty("fundAvailability", dealerFund);
 
                 await oODataModel.submitBatch("$auto");
 
                 oViewModel.setProperty("/fundAvailability", dealerFund);
-
-                this._calculateInitialTotals();
                 oViewModel.setProperty("/calculateEnabled", false);
                 oViewModel.setProperty("/saveEnabled", false);
-
-
                 sap.m.MessageToast.show("Allocation saved successfully.");
 
             } catch (error) {
 
                 console.error(error);
                 sap.m.MessageBox.error("Error while saving allocation.");
+            }
+        },
+        async onAllocatedQtyPress(oEvent) {
+
+            const oContext = oEvent.getSource().getBindingContext("view");
+            if (!oContext) return;
+
+            const oRow = oContext.getObject();
+            const sModelCode = oRow.modelCode;
+
+            const oViewModel = this.getView().getModel("view");
+            const sDealerID = oViewModel.getProperty("/selectedDealerID");
+            const oODataModel = this.getView().getModel();
+
+            try {
+
+                const oBinding = oODataModel.bindList("/DealerAllocations", null, null, null, {
+                    $filter: `dealer_dealerID eq '${sDealerID}' and model_modelCode eq '${sModelCode}'`
+                });
+
+                const aContexts = await oBinding.requestContexts();
+
+                if (!aContexts.length) {
+                    sap.m.MessageToast.show("No allocation history found.");
+                    return;
+                }
+
+                // 🔥 Step 1: Group by Email & Keep Latest Allocation
+                const mUniqueUsers = {};
+
+                aContexts.forEach(ctx => {
+
+                    const data = ctx.getObject();
+                    const email = data.allocatedEmail;
+
+                    if (!email) return;
+
+                    const currentDate = new Date(data.allocatedAt);
+
+                    if (!mUniqueUsers[email]) {
+                        mUniqueUsers[email] = data;
+                    } else {
+                        const existingDate = new Date(mUniqueUsers[email].allocatedAt);
+
+                        // Keep latest date
+                        if (currentDate > existingDate) {
+                            mUniqueUsers[email] = data;
+                        }
+                    }
+                });
+
+                // Convert map to array
+                const aFinalList = Object.values(mUniqueUsers);
+
+                // 🔥 Step 2: Create List Items
+                const aListItems = aFinalList.map(item =>
+                    new sap.m.StandardListItem({
+                        title: item.allocatedBy || "N/A",
+                        description: item.allocatedAt
+                            ? new Date(item.allocatedAt).toLocaleString()
+                            : "N/A"
+                    })
+                );
+
+                // 🔥 Step 3: Show Dialog
+                const oDialog = new sap.m.Dialog({
+                    title: "Allocation History",
+                    contentWidth: "400px",
+                    content: new sap.m.List({
+                        items: aListItems
+                    }),
+                    beginButton: new sap.m.Button({
+                        text: "Close",
+                        press: function () {
+                            oDialog.close();
+                        }
+                    }),
+                    afterClose: function () {
+                        oDialog.destroy();
+                    }
+                });
+
+                oDialog.open();
+
+            } catch (error) {
+                console.error(error);
+                sap.m.MessageBox.error("Error fetching allocation details.");
             }
         }
 
