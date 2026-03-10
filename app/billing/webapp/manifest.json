@@ -23,6 +23,18 @@
           "odataVersion": "4.0"
         }
       }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "billing-display": {
+          "semanticObject": "billing",
+          "action": "display",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
     }
   },
   "sap.ui": {
@@ -112,5 +124,9 @@
       "id": "App",
       "async": true
     }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "BillingApp.service"
   }
 }

@@ -21,8 +21,11 @@
   "cds": {
     "requires": {
       "[production]": {
-        "auth": "mocked"
-      }
+        "auth": "xsuaa"
+      },
+      "destinations": true,
+      "html5-repo": true,
+      "workzone": true
     }
   },
   "workspaces": [

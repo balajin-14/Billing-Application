@@ -10,10 +10,14 @@
   "main": "webapp/index.html",
   "dependencies": {},
   "devDependencies": {
+    "@sap/cds-dk": "^9",
+    "@sap/ux-ui5-tooling": "1",
     "@ui5/cli": "^4.0.33",
-    "@sap/ux-ui5-tooling": "1"
+    "ui5-task-zipper": "^3"
   },
   "scripts": {
-    "deploy-config": "npx -p @sap/ux-ui5-tooling fiori add deploy-config cf"
+    "deploy-config": "npx -p @sap/ux-ui5-tooling fiori add deploy-config cf",
+    "build": "ui5 build --clean-dest",
+    "start": "ui5 serve"
   }
 }
